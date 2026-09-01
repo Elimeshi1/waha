@@ -130,6 +130,7 @@ import {
 import {
   DeleteStatusRequest,
   ImageStatus,
+  StatusAckSummary,
   TextStatus,
   VideoStatus,
   VoiceStatus,
@@ -643,6 +644,16 @@ export abstract class WhatsappSession {
    * Other methods
    */
   generateNewMessageId(): Promise<string> {
+    throw new NotImplementedByEngineError();
+  }
+
+  /**
+   * Delivery/read counts and participants for a status we sent.
+   */
+  getStatusAck(
+    messageId: string,
+    participants = false,
+  ): Promise<StatusAckSummary> {
     throw new NotImplementedByEngineError();
   }
 

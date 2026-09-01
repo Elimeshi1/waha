@@ -84,10 +84,19 @@ import { ExtractMessageKeysForRead } from '@waha/core/utils/convertors';
 import { parseMessageIdSerialized } from '@waha/core/utils/ids';
 import {
   isJidNewsletter,
+  isJidStatusBroadcast,
   jidsFromKey,
   toCusFormat,
   toJID,
 } from '@waha/core/utils/jids';
+import {
+  ACK_DELIVERED,
+  ACK_READ,
+  StatusAckStore,
+} from '@waha/core/status/StatusAckStore';
+import { LocalStore } from '@waha/core/storage/LocalStore';
+import * as nodeFs from 'node:fs';
+import * as nodePath from 'node:path';
 import { DistinctAck, DistinctMessages } from '@waha/core/utils/reactive';
 import {
   flipObject,
@@ -200,6 +209,7 @@ import {
   BROADCAST_ID,
   DeleteStatusRequest,
   ImageStatus,
+  StatusAckSummary,
   StatusRequest,
   TextStatus,
   VideoStatus,
@@ -233,6 +243,7 @@ import {
   Observable,
   partition,
   share,
+  Subscription,
   tap,
 } from 'rxjs';
 import { debounceTime, map } from 'rxjs/operators';
@@ -320,6 +331,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   private qr: QR;
 
   private statusTracker = new StatusTracker();
+
+  private statusAckStore?: StatusAckStore;
+  private statusAckSub?: Subscription;
 
   public constructor(config) {
     super(config);
@@ -692,6 +706,12 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     await this.closeStores();
     this.status = WAHASessionStatus.STOPPED;
     this.stopEvents();
+
+    this.statusAckSub?.unsubscribe();
+    this.statusAckSub = undefined;
+    this.statusAckStore?.close();
+    this.statusAckStore = undefined;
+
     this.mediaManager.close();
   }
 
@@ -2918,6 +2938,25 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       .get(WAHAEvents.MESSAGE_ACK_GROUP)
       .switch(messageAckGroupsFinal$);
 
+    // [WAHA] Count status@broadcast acks straight from the RAW receipt stream,
+    // BEFORE the `this.jids.include` ignore filter above. This way received/read
+    // counters keep working even when status/broadcast events are ignored for
+    // webhooks (e.g. huge contact lists with IGNORE_STATUS=true).
+    this.initStatusAckStore();
+    this.statusAckSub = fromEvent(this.sock.ev, 'message-receipt.update')
+      .pipe(
+        // @ts-ignore
+        mergeAll(),
+        filter((update: any) => isJidStatusBroadcast(update?.key?.remoteJid)),
+      )
+      .subscribe((update: any) => {
+        try {
+          this.recordStatusReceipt(update);
+        } catch (e) {
+          this.logger.warn(`Failed to record status ack: ${e}`);
+        }
+      });
+
     //
     // Other
     //
@@ -3665,6 +3704,60 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     return null;
   }
 
+  /**
+   * Open (once) the per-session SQLite store that keeps status@broadcast
+   * received/viewed participants. Only supported for the local (file) store;
+   * for other stores the counter is simply disabled.
+   */
+  private initStatusAckStore(): void {
+    if (this.statusAckStore) {
+      return;
+    }
+    try {
+      if (!(this.sessionStore instanceof LocalStore)) {
+        return;
+      }
+      const dir = this.sessionStore.getSessionDirectory(this.name);
+      nodeFs.mkdirSync(dir, { recursive: true });
+      const file = nodePath.join(dir, 'status_ack.sqlite3');
+      this.statusAckStore = new StatusAckStore(file);
+    } catch (e) {
+      this.logger.warn(`Failed to init status ack store: ${e}`);
+    }
+  }
+
+  // Record a single status@broadcast receipt: the viewer (receipt.userJid) and
+  // whether they delivered (receiptTimestamp) or read/played the status.
+  private recordStatusReceipt(update: any): void {
+    const messageId = update?.key?.id;
+    const participant = update?.receipt?.userJid;
+    if (!messageId || !participant) {
+      return;
+    }
+    const receipt = update.receipt;
+    let ack = 0;
+    if (receipt?.readTimestamp || receipt?.playedTimestamp) {
+      ack = ACK_READ;
+    } else if (receipt?.receiptTimestamp) {
+      ack = ACK_DELIVERED;
+    }
+    if (!ack) {
+      return;
+    }
+    this.statusAckStore?.record(messageId, participant, ack);
+  }
+
+  async getStatusAck(
+    messageId: string,
+    participants = false,
+  ): Promise<StatusAckSummary> {
+    const id = extractStatusShortId(messageId);
+    if (!this.statusAckStore) {
+      return { messageId: id, received: 0, read: 0 };
+    }
+    return this.statusAckStore.getSummary(id, participants);
+  }
+
   protected async getMessageOptions(request: {
     id?: string;
     chatId: string;
@@ -3921,4 +4014,15 @@ export function extractBody(message): string | null {
   }
 
   return body;
+}
+
+// Extract the short status id from a serialized message id. Accepts either a
+// raw short id or the `<fromMe>_status@broadcast_<shortId>[_<participant>]` form.
+function extractStatusShortId(messageId: string): string {
+  if (!messageId || !messageId.includes('_')) {
+    return messageId;
+  }
+  const parts = messageId.split('_');
+  // [fromMe, status@broadcast, shortId, (participant)]
+  return parts.length >= 3 ? parts[2] : messageId;
 }

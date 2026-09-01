@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
   SessionApiParam,
@@ -10,7 +18,9 @@ import { SessionManager } from '../core/abc/manager.abc';
 import { WhatsappSession } from '../core/abc/session.abc';
 import {
   DeleteStatusRequest,
+  GetStatusAckQuery,
   ImageStatus,
+  StatusAckSummary,
   TextStatus,
   VideoStatus,
   VoiceStatus,
@@ -94,6 +104,25 @@ class StatusController {
   ): Promise<NewMessageIDResponse> {
     const id = await session.generateNewMessageId();
     return { id: id };
+  }
+
+  @Get(':messageId/ack')
+  @SessionApiParam
+  @CheckPolicies(CanSession(Action.Read, FromParam('session')))
+  @ApiOperation({
+    summary: 'Get delivery/read counts and participants for a sent status',
+    description:
+      'Counts are tracked inside the engine before the `ignore` filter, ' +
+      'so they keep working even when status events are ignored for webhooks. ' +
+      'Accepts the short message id (e.g. 3EB0...) or the full ' +
+      'true_status@broadcast_<id> form.',
+  })
+  getStatusAck(
+    @WorkingSessionParam session: WhatsappSession,
+    @Param('messageId') messageId: string,
+    @Query() query: GetStatusAckQuery,
+  ): Promise<StatusAckSummary> {
+    return session.getStatusAck(messageId, query.participants);
   }
 }
 

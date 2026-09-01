@@ -1,5 +1,8 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { ConvertApiProperty } from '@waha/structures/properties.dto';
+import { BooleanString } from '@waha/nestjs/validation/BooleanString';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional } from 'class-validator';
 
 import {
   BinaryFile,
@@ -94,4 +97,60 @@ export class DeleteStatusRequest extends StatusRequest {
 
   @ContactsProperty
   contacts?: string[];
+}
+
+export class StatusAckSummary {
+  @ApiProperty({
+    description: 'Status message id',
+    example: '3EB0C767D097E9ECFE8B',
+  })
+  messageId: string;
+
+  @ApiProperty({
+    description:
+      'Number of unique participants that received the status (ack >= DEVICE)',
+    example: 0,
+  })
+  received: number;
+
+  @ApiProperty({
+    description:
+      'Number of unique participants that viewed the status (ack >= READ)',
+    example: 0,
+  })
+  read: number;
+
+  @ApiProperty({
+    description:
+      'Participants (usually @lid) that received the status. Viewers are a subset of these. ' +
+      'Only present when `participants=true`.',
+    type: [String],
+    required: false,
+    example: [],
+  })
+  receivedParticipants?: string[];
+
+  @ApiProperty({
+    description:
+      'Participants (usually @lid) that viewed the status. ' +
+      'Only present when `participants=true`.',
+    type: [String],
+    required: false,
+    example: [],
+  })
+  readParticipants?: string[];
+}
+
+export class GetStatusAckQuery {
+  @ApiProperty({
+    required: false,
+    example: false,
+    description:
+      'Include the participant lists (receivedParticipants/readParticipants). ' +
+      'By default only the counts are returned.',
+  })
+  @Transform(BooleanString)
+  @IsBoolean()
+  @IsOptional()
+  participants: boolean = false;
 }

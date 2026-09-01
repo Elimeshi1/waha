@@ -38,6 +38,10 @@ import {
 import { parseMessageCapping } from '@waha/core/abc/capping';
 import { parseGowsReachoutTimelock } from '@waha/core/engines/gows/reachouttimelock';
 import { GowsAuthFactoryCore } from '@waha/core/engines/gows/store/GowsAuthFactoryCore';
+import { StatusAckStore } from '@waha/core/status/StatusAckStore';
+import { LocalStore } from '@waha/core/storage/LocalStore';
+import * as nodeFs from 'node:fs';
+import * as nodePath from 'node:path';
 import {
   extractBody,
   getDestination,
@@ -56,6 +60,7 @@ import {
   isJidBroadcast,
   isJidGroup,
   isJidNewsletter,
+  isJidStatusBroadcast,
   toCusFormat,
 } from '@waha/core/utils/jids';
 import {
@@ -159,6 +164,7 @@ import {
   BROADCAST_ID,
   DeleteStatusRequest,
   ImageStatus,
+  StatusAckSummary,
   TextStatus,
   VideoStatus,
   VoiceStatus,
@@ -184,6 +190,7 @@ import {
   retry,
   share,
   Subject,
+  Subscription,
 } from 'rxjs';
 import { map, debounceTime } from 'rxjs/operators';
 import { promisify } from 'util';
@@ -305,6 +312,10 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
   protected presences: any;
 
   private local$ = new Subject<EnginePayload>();
+
+  // [WAHA] status@broadcast ack counter (received/viewed), persisted per session.
+  private statusAckStore?: StatusAckStore;
+  private statusAckSub?: Subscription;
 
   public constructor(config) {
     super(config);
@@ -681,6 +692,24 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
     this.events2.get(WAHAEvents.MESSAGE_ACK_GROUP).switch(messageAckGroups$);
     this.events2.get(WAHAEvents.MESSAGE_ACK).switch(messageAckContacts$);
 
+    // [WAHA] Count status@broadcast acks straight from the RAW receipt stream,
+    // BEFORE the `this.jids.include` ignore filter above. This way received/read
+    // counters keep working even when status/broadcast events are ignored for
+    // webhooks (e.g. huge contact lists with IGNORE_STATUS=true).
+    this.initStatusAckStore();
+    this.statusAckSub = all$
+      .pipe(
+        onlyEvent(WhatsMeowEvent.RECEIPT),
+        filter((r: any) => isJidStatusBroadcast(r?.Chat || r?.Info?.Chat)),
+      )
+      .subscribe((r: any) => {
+        try {
+          this.statusAckStore?.recordReceipt(r);
+        } catch (e) {
+          this.logger.warn(`Failed to record status ack: ${e}`);
+        }
+      });
+
     const messageReactions$ = messages$.pipe(
       filter((msg) => !!msg?.Message?.reactionMessage),
       map(this.processMessageReaction.bind(this)),
@@ -899,11 +928,48 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
     this.status = WAHASessionStatus.STOPPED;
     this.events?.stop();
     this.stopEvents();
+    this.statusAckSub?.unsubscribe();
+    this.statusAckSub = undefined;
+    this.statusAckStore?.close();
+    this.statusAckStore = undefined;
     this.mediaManager.close();
     if (this.client) {
       await promisify(this.client.StopSession)(this.session);
       this.client?.close();
     }
+  }
+
+  /**
+   * Open (once) the per-session SQLite store that keeps status@broadcast
+   * received/viewed participants. Only supported for the local (file) store;
+   * for other stores the counter is simply disabled.
+   */
+  private initStatusAckStore(): void {
+    if (this.statusAckStore) {
+      return;
+    }
+    try {
+      if (!(this.sessionStore instanceof LocalStore)) {
+        return;
+      }
+      const dir = this.sessionStore.getSessionDirectory(this.name);
+      nodeFs.mkdirSync(dir, { recursive: true });
+      const file = nodePath.join(dir, 'status_ack.sqlite3');
+      this.statusAckStore = new StatusAckStore(file);
+    } catch (e) {
+      this.logger.warn(`Failed to init status ack store: ${e}`);
+    }
+  }
+
+  async getStatusAck(
+    messageId: string,
+    participants = false,
+  ): Promise<StatusAckSummary> {
+    const id = extractStatusShortId(messageId);
+    if (!this.statusAckStore) {
+      return { messageId: id, received: 0, read: 0 };
+    }
+    return this.statusAckStore.getSummary(id, participants);
   }
 
   public async requestCode(phoneNumber: string, method: string, params?: any) {
@@ -3425,6 +3491,20 @@ function getFromToParticipant(message) {
     participant: info.IsGroup ? info.Sender : null,
     fromMe: info.IsFromMe,
   };
+}
+
+/**
+ * Accept either the short status id (e.g. "3EB0...") or the serialized
+ * "true_status@broadcast_<shortId>[_<participant>]" form and return the
+ * short id used as the key in the status ack store.
+ */
+function extractStatusShortId(messageId: string): string {
+  if (!messageId || !messageId.includes('_')) {
+    return messageId;
+  }
+  const parts = messageId.split('_');
+  // [fromMe, status@broadcast, shortId, (participant)]
+  return parts.length >= 3 ? parts[2] : messageId;
 }
 
 interface MessageIdData {
