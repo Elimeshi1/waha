@@ -1,0 +1,7 @@
+# Force LF for all text files on checkout — prevents the CRLF entrypoint.sh bug
+# (container exit 127 "exec /entrypoint.sh failed") when cloning on Windows.
+* text=auto eol=lf
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+Dockerfile* text eol=lf
+.gows/* binary
