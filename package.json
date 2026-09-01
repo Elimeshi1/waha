@@ -29,7 +29,7 @@
     "gows:proto": "yarn gows:proto:fetch && yarn gows:proto:build"
   },
   "dependencies": {
-    "@adiwajshing/baileys": "github:devlikeapro/Baileys#fork-master-2026-04-28",
+    "@adiwajshing/baileys": "github:Elimeshi1/Baileys#fork-master-2026-04-28",
     "@adiwajshing/keyed-db": "^0.2.4",
     "@aws-sdk/client-s3": "^3.633.0",
     "@aws-sdk/s3-request-presigner": "^3.633.0",
@@ -92,7 +92,7 @@
     "joi": "^17.13.3",
     "knex": "^3.1.0",
     "libphonenumber-js": "^1.10.36",
-    "libsignal": "github:WhiskeySockets/libsignal-node#master",
+    "libsignal": "github:Elimeshi1/libsignal-node#fork-master-2026-06-28",
     "link-preview-js": "^3.0.4",
     "lodash": "^4.17.21",
     "long": "^5.3.2",
@@ -135,6 +135,7 @@
     "bufferutil": "^4.0.8"
   },
   "resolutions": {
+    "libsignal": "github:Elimeshi1/libsignal-node#fork-master-2026-06-28",
     "typescript": "5.9.2",
     "bufferutil": "^4.0.8",
     "ws": "^8.18.0",
