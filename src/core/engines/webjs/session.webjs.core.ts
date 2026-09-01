@@ -36,6 +36,7 @@ import {
   CallErrorEvent,
   PAGE_CALL_ERROR_EVENT,
 } from '@waha/core/engines/webjs/WPage';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 import { WAMimeType } from '@waha/core/media/WAMimeType';
 import { detectMimetype } from '@waha/utils/files';
 import { NotImplementedByEngineError } from '@waha/core/exceptions';
@@ -1166,7 +1167,7 @@ export class WhatsappSessionWebJSCore extends WhatsappSession {
 
   private async convertVideo(media: MessageMedia) {
     let content: Buffer<ArrayBufferLike> = Buffer.from(media.data, 'base64');
-    content = await this.mediaConverter.video(content);
+    content = await this.mediaConverter.video(content, VideoQuality.ORIGINAL);
     media.data = content.toString('base64');
     media.mimetype = WAMimeType.VIDEO;
     media.filename = null;

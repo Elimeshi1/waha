@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { SessionManager } from '@waha/core/abc/manager.abc';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 import { WAMimeType } from '@waha/core/media/WAMimeType';
 import { ApiFileAcceptHeader } from '@waha/nestjs/ApiFileAcceptHeader';
 import {
@@ -68,7 +69,10 @@ class MediaController {
     @Body() file: VideoFileDTO,
   ): Promise<Buffer> {
     const data = await this.buffer(session, file);
-    const content = await session.mediaConverter.video(data);
+    const content = await session.mediaConverter.video(
+      data,
+      VideoQuality.ORIGINAL,
+    );
     return content;
   }
 

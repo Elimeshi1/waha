@@ -3,7 +3,10 @@ import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Logger } from 'pino';
-import { IMediaConverter } from '@waha/core/media/IMediaConverter';
+import {
+  IMediaConverter,
+  VideoQuality,
+} from '@waha/core/media/IMediaConverter';
 
 function IsMP3(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 3) return false;
@@ -117,6 +120,48 @@ function pipeline(...commands: ICommand[]): ICommand {
   return new CommandPipe(commands);
 }
 
+interface VideoProfile {
+  // Cap the *short* side of the frame to this many pixels (never upscales).
+  // 1080x1920 -> 720x1280, 1920x1080 -> 1280x720.
+  shortSide: number;
+  // x264 constant rate factor - higher means smaller file and lower quality.
+  crf: number;
+  audioBitrate: string;
+  // Cap the frame rate. 60fps sources are halved, 30fps and below are untouched.
+  fps: number;
+}
+
+const VIDEO_PROFILES: Record<string, VideoProfile> = {
+  [VideoQuality.HIGH]: {
+    shortSide: 900,
+    crf: 25,
+    audioBitrate: '128k',
+    fps: 30,
+  },
+  [VideoQuality.MEDIUM]: {
+    shortSide: 720,
+    crf: 26,
+    audioBitrate: '128k',
+    fps: 30,
+  },
+  [VideoQuality.LOW]: { shortSide: 480, crf: 30, audioBitrate: '96k', fps: 30 },
+};
+
+/**
+ * Build the -vf value that caps the short side of the frame.
+ *
+ * Must not contain spaces - Command splits its command line on ' '. The inner
+ * quotes are intentional and are parsed by ffmpeg itself (the args are passed
+ * to spawn() without a shell, so they reach ffmpeg verbatim). Without them
+ * ffmpeg reads the ',' inside min()/if() as a filter separator and fails with
+ * "Invalid size".
+ */
+function scaleFilter(shortSide: number): string {
+  const w = `if(gt(iw,ih),-2,min(${shortSide},iw))`;
+  const h = `if(gt(iw,ih),min(${shortSide},ih),-2)`;
+  return `scale='${w}':'${h}'`;
+}
+
 class Ffmpeg implements IMediaConverter {
   private readonly tmpdir: TmpDir;
 
@@ -203,12 +248,56 @@ class Ffmpeg implements IMediaConverter {
   }
 
   /**
+   * Build the ffmpeg command that downscales and compresses the video.
+   * Unlike WhatsAppVideo this drops '-map 0' so only the primary video and
+   * audio streams survive - scaling a file with several video streams would
+   * otherwise fail.
+   */
+  private compressVideoCommand(profile: VideoProfile): ICommand {
+    return new Command(
+      'ffmpeg -hide_banner -loglevel error -nostdin -i input.mp4' +
+        ' -c:v libx264 -preset medium' +
+        ` -crf ${profile.crf}` +
+        ' -pix_fmt yuv420p' +
+        ` -vf ${scaleFilter(profile.shortSide)}` +
+        ` -r ${profile.fps}` +
+        ` -c:a aac -b:a ${profile.audioBitrate}` +
+        ' -movflags +faststart output.mp4',
+      'input.mp4',
+      'output.mp4',
+    );
+  }
+
+  /**
    * Process video content to make it compatible with WhatsApp
    * @param content Video buffer to process
+   * @param quality How aggressively to compress it
    * @returns Processed video buffer or original buffer if processing fails
    */
-  public async video(content: Buffer): Promise<Buffer> {
-    return this.process(this.WhatsAppVideo, content);
+  public async video(
+    content: Buffer,
+    quality: VideoQuality,
+  ): Promise<Buffer> {
+    const profile = VIDEO_PROFILES[quality];
+    if (!profile) {
+      // ORIGINAL, or a value the HTTP layer let through - the status endpoints
+      // run without a ValidationPipe, so anything can reach us here.
+      if (quality !== VideoQuality.ORIGINAL) {
+        this.logger.warn(
+          `Unknown video quality '${quality}', sending at original quality`,
+        );
+      }
+      return this.process(this.WhatsAppVideo, content);
+    }
+    const result = await this.process(
+      this.compressVideoCommand(profile),
+      content,
+    );
+    this.logger.debug(
+      `Video compressed with '${quality}' profile: ` +
+        `${content.length} -> ${result.length} bytes`,
+    );
+    return result;
   }
 }
 

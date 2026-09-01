@@ -132,6 +132,7 @@ import {
   WppSendTextStatusOptions,
 } from '@waha/core/engines/wpp/WppTypes';
 import { NotImplementedByEngineError } from '@waha/core/exceptions';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 import {
   IMediaEngineProcessor,
   MediaContent,
@@ -907,7 +908,7 @@ export class WhatsappSessionWPPCore extends WhatsappSession {
   }
 
   private async convertVideo(content: Buffer): Promise<Buffer> {
-    return await this.mediaConverter.video(content);
+    return await this.mediaConverter.video(content, VideoQuality.ORIGINAL);
   }
 
   private async convertVoice(content: Buffer): Promise<Buffer> {

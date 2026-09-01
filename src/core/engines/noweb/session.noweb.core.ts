@@ -71,6 +71,7 @@ import { NotImplementedByEngineError } from '@waha/core/exceptions';
 import { toVcardV3 } from '@waha/core/vcard';
 import { createAgentProxy } from '@waha/core/helpers.proxy';
 import type { Agent } from 'https';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 import {
   IMediaEngineProcessor,
   MediaContent,
@@ -1377,7 +1378,10 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     );
     message.mimetype = message.mimetype || WAMimeType.VIDEO;
     if (request.convert) {
-      message['video'] = await this.mediaConverter.video(message['video']);
+      message['video'] = await this.mediaConverter.video(
+        message['video'],
+        VideoQuality.ORIGINAL,
+      );
       message.mimetype = WAMimeType.VIDEO;
     }
     if (request.mentions?.length) {
@@ -2542,7 +2546,10 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     );
     message.mimetype = message.mimetype || WAMimeType.VIDEO;
     if (status.convert) {
-      message['video'] = await this.mediaConverter.video(message['video']);
+      message['video'] = await this.mediaConverter.video(
+        message['video'],
+        status.videoQuality,
+      );
       message.mimetype = WAMimeType.VIDEO;
     }
     const jids = await this.prepareJidsForStatus(status.contacts);

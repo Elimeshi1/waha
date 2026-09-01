@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptions } from '@nestjs/swagger';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 
 function ChatIdProperty(options: ApiPropertyOptions | null = null) {
   options = options || {};
@@ -44,6 +45,21 @@ export function ConvertApiProperty() {
     description:
       'Convert the input file to the required format using ffmpeg before sending',
     example: true,
+  });
+}
+
+export function VideoQualityApiProperty() {
+  return ApiProperty({
+    description:
+      'How much to compress the video when "convert" is enabled. ' +
+      'Lower quality means a smaller file that downloads faster for the ' +
+      'recipient. "original" keeps the resolution and bitrate untouched. ' +
+      'Roughly, compared to "original": high ~55% smaller, ' +
+      'medium ~78% smaller, low ~93% smaller.',
+    enum: VideoQuality,
+    required: false,
+    default: VideoQuality.ORIGINAL,
+    example: VideoQuality.MEDIUM,
   });
 }
 

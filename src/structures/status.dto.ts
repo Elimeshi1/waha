@@ -1,8 +1,12 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { ConvertApiProperty } from '@waha/structures/properties.dto';
+import {
+  ConvertApiProperty,
+  VideoQualityApiProperty,
+} from '@waha/structures/properties.dto';
+import { VideoQuality } from '@waha/core/media/IMediaConverter';
 import { BooleanString } from '@waha/nestjs/validation/BooleanString';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
 
 import {
   BinaryFile,
@@ -86,6 +90,11 @@ export class VideoStatus extends StatusRequest {
 
   @ConvertApiProperty()
   convert: boolean;
+
+  @VideoQualityApiProperty()
+  @IsOptional()
+  @IsEnum(VideoQuality)
+  videoQuality?: VideoQuality = VideoQuality.ORIGINAL;
 }
 
 export class DeleteStatusRequest extends StatusRequest {

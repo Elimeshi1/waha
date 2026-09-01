@@ -1457,12 +1457,14 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
         case messages.MediaType.VIDEO:
           media.content = await this.mediaConverter.video(
             media.content as Buffer,
+            request.videoQuality,
           );
           media.mimetype = WAMimeType.VIDEO;
           break;
         case messages.MediaType.PTV:
           media.content = await this.mediaConverter.video(
             media.content as Buffer,
+            request.videoQuality,
           );
           media.mimetype = WAMimeType.VIDEO;
           break;
