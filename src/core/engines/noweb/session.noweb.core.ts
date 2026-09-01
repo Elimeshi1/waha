@@ -323,6 +323,13 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   private autoRestartJob: SinglePeriodicJobRunner;
   private msgRetryCounterCache: NodeCache;
   private placeholderResendCache: NodeCache;
+  // In-memory caches for the Signal key store and USync device lists. We own
+  // these (instead of letting Baileys create internal ones) so we can flush
+  // them after a status broadcast - sending to a huge recipient list loads tens
+  // of thousands of Signal sessions into RAM, and nothing needs to stay cached
+  // once the send is done. The persistent (on-disk) store is untouched.
+  private signalKeyCache?: NodeCache;
+  private userDevicesCache?: NodeCache;
   protected engineLogger: ILogger;
 
   private authNOWEBStore: any;
@@ -452,6 +459,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       syncFullHistory: fullSyncEnabled,
       msgRetryCounterCache: this.msgRetryCounterCache,
       placeholderResendCache: this.placeholderResendCache,
+      userDevicesCache: this.userDevicesCache as any,
       markOnlineOnConnect: markOnlineOnConnect,
     };
   }
@@ -463,9 +471,22 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
         this.name,
       );
       /** caching makes the store faster to send/recv messages */
+      // We pass our own cache (rather than letting makeCacheableSignalKeyStore
+      // create a private one) so flushSignalKeyCaches() can clear it after a
+      // status broadcast. Mirrors Baileys' own defaults (5-min TTL, no clones).
+      this.signalKeyCache = new NodeCache({
+        stdTTL: 5 * 60,
+        useClones: false,
+        deleteOnExpire: true,
+      });
+      this.userDevicesCache = new NodeCache({
+        stdTTL: 5 * 60,
+        useClones: false,
+      });
       store.state.keys = makeCacheableSignalKeyStore(
         store.state.keys,
         this.engineLogger,
+        this.signalKeyCache as any,
       );
       this.authNOWEBStore = store;
     }
@@ -2404,7 +2425,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     jids: string[],
     batchSize?: number,
   ) {
-    if (!batchSize || batchSize == 0) {
+    // Cap the batch size so huge recipient lists are actually chunked
+    // (callers pass the full contact count, which would otherwise be one chunk).
+    if (!batchSize || batchSize <= 0 || batchSize > 5_000) {
       batchSize = 5_000;
     }
     const chunks = lodash.chunk(jids, batchSize);
@@ -2429,11 +2452,46 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
         index,
       );
       result = result || r;
+      // Free the Signal sessions / device lists this chunk loaded into RAM.
+      // Chunks target disjoint recipients, so nothing here is reused by the
+      // next chunk - keeping it only inflates memory for a 5k-per-chunk send.
+      this.flushSignalKeyCaches(`chunk ${index + 1}/${chunks.length}`);
     }
+    // Final sweep once the whole status is out the door.
+    this.flushSignalKeyCaches('status send complete');
     logger.info(
       `Sending status message to ${jids.length} participants - success`,
     );
     return result;
+  }
+
+  /**
+   * Drop the in-memory Signal key + device caches. The on-disk (persistent)
+   * auth store is NOT touched - these are pure RAM caches, so the only cost is
+   * re-reading a key from disk if it's needed again. Called after each status
+   * chunk and once the whole broadcast finishes, so the tens of thousands of
+   * Signal sessions a large status loads don't linger in RAM.
+   *
+   * NOTE: we deliberately do NOT force a GC here. A synchronous global.gc() on a
+   * multi-GB heap is a ~1-2s stop-the-world pause; calling it after every chunk
+   * froze the single event loop and starved the WebSocket receive path (delaying
+   * incoming status-ack receipts), and it did not actually shrink RSS anyway
+   * (V8 keeps the grown heap). flushAll() alone clears the references; V8's own
+   * GC reclaims them on its normal schedule.
+   */
+  private flushSignalKeyCaches(reason: string): void {
+    try {
+      const signalKeys = this.signalKeyCache?.keys()?.length || 0;
+      const deviceKeys = this.userDevicesCache?.keys()?.length || 0;
+      this.signalKeyCache?.flushAll();
+      this.userDevicesCache?.flushAll();
+      this.engineLogger.debug(
+        `Flushed in-memory signal caches (${reason}): ` +
+          `signalKeys=${signalKeys}, deviceCache=${deviceKeys}`,
+      );
+    } catch (e) {
+      this.engineLogger.warn(`Failed to flush signal caches: ${e}`);
+    }
   }
 
   private async sendStatusMessageOneChunk(
