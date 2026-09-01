@@ -19,6 +19,7 @@ import { IGroupRepository } from '@waha/core/engines/noweb/store/IGroupRepositor
 import { ILabelAssociationRepository } from '@waha/core/engines/noweb/store/ILabelAssociationsRepository';
 import { ILabelsRepository } from '@waha/core/engines/noweb/store/ILabelsRepository';
 import {
+  isJidStatusBroadcast,
   isLidUser,
   isPnUser,
   JidFilter,
@@ -251,9 +252,19 @@ export class NowebPersistentStore implements INowebStore {
     ]);
   }
 
+  // Keep messages for chats we don't ignore, plus our own (fromMe)
+  // status@broadcast so statuses we sent stay readable from the DB even when
+  // statuses are configured to be ignored. Statuses from others stay filtered.
+  private keepMessageKey(key?: { remoteJid?: string; fromMe?: boolean }): boolean {
+    if (this.jids.include(key?.remoteJid)) {
+      return true;
+    }
+    return Boolean(key?.fromMe) && isJidStatusBroadcast(key?.remoteJid);
+  }
+
   private async syncMessagesHistory(messages) {
     const realMessages = messages.filter(esm.b.isRealMessage);
-    messages = messages.filter((msg) => this.jids.include(msg.key.remoteJid));
+    messages = messages.filter((msg) => this.keepMessageKey(msg.key));
     for (const message of messages) {
       message.status = StatusStringToStatus(message.status);
     }
@@ -270,7 +281,7 @@ export class NowebPersistentStore implements INowebStore {
       return;
     }
     let messages = update.messages;
-    messages = messages.filter((msg) => this.jids.include(msg.key.remoteJid));
+    messages = messages.filter((msg) => this.keepMessageKey(msg.key));
     const realMessages = messages.filter(esm.b.isRealMessage);
     await this.messagesRepo.upsert(realMessages);
     this.logger.debug(
@@ -282,7 +293,7 @@ export class NowebPersistentStore implements INowebStore {
     for (const update of updates) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const jid = esm.b.jidNormalizedUser(update.key.remoteJid!);
-      if (!this.jids.include(jid)) {
+      if (!this.keepMessageKey(update.key)) {
         continue;
       }
       if (!update.key.id) {
