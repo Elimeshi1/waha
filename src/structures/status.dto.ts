@@ -108,7 +108,8 @@ export class DeleteStatusRequest extends StatusRequest {
   contacts?: string[];
 }
 
-// Counts cover the statuses this account posted. Watching somebody else's
+// Counts cover the statuses this account posted. Most viewers arrive in a
+// grouped receipt, which the engine could not read until now. Watching somebody else's
 // status raises a receipt on the same chat, and the engine drops those:
 // they say nothing about the reach of our own.
 export class StatusAckSummary {
