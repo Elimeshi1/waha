@@ -9098,6 +9098,281 @@ export namespace messages {
             return EntityByIdRequest.deserialize(bytes);
         }
     }
+    export class StatusAckRequest extends pb_1.Message {
+        #one_of_decls: number[][] = [];
+        constructor(data?: any[] | {
+            session?: Session;
+            message_id?: string;
+            participants?: boolean;
+        }) {
+            super();
+            pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], this.#one_of_decls);
+            if (!Array.isArray(data) && typeof data == "object") {
+                if ("session" in data && data.session != undefined) {
+                    this.session = data.session;
+                }
+                if ("message_id" in data && data.message_id != undefined) {
+                    this.message_id = data.message_id;
+                }
+                if ("participants" in data && data.participants != undefined) {
+                    this.participants = data.participants;
+                }
+            }
+        }
+        get session() {
+            return pb_1.Message.getWrapperField(this, Session, 1) as Session;
+        }
+        set session(value: Session) {
+            pb_1.Message.setWrapperField(this, 1, value);
+        }
+        get has_session() {
+            return pb_1.Message.getField(this, 1) != null;
+        }
+        get message_id() {
+            return pb_1.Message.getFieldWithDefault(this, 2, "") as string;
+        }
+        set message_id(value: string) {
+            pb_1.Message.setField(this, 2, value);
+        }
+        get participants() {
+            return pb_1.Message.getFieldWithDefault(this, 3, false) as boolean;
+        }
+        set participants(value: boolean) {
+            pb_1.Message.setField(this, 3, value);
+        }
+        static fromObject(data: {
+            session?: ReturnType<typeof Session.prototype.toObject>;
+            message_id?: string;
+            participants?: boolean;
+        }): StatusAckRequest {
+            const message = new StatusAckRequest({});
+            if (data.session != null) {
+                message.session = Session.fromObject(data.session);
+            }
+            if (data.message_id != null) {
+                message.message_id = data.message_id;
+            }
+            if (data.participants != null) {
+                message.participants = data.participants;
+            }
+            return message;
+        }
+        toObject() {
+            const data: {
+                session?: ReturnType<typeof Session.prototype.toObject>;
+                message_id?: string;
+                participants?: boolean;
+            } = {};
+            if (this.session != null) {
+                data.session = this.session.toObject();
+            }
+            if (this.message_id != null) {
+                data.message_id = this.message_id;
+            }
+            if (this.participants != null) {
+                data.participants = this.participants;
+            }
+            return data;
+        }
+        serialize(): Uint8Array;
+        serialize(w: pb_1.BinaryWriter): void;
+        serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
+            const writer = w || new pb_1.BinaryWriter();
+            if (this.has_session)
+                writer.writeMessage(1, this.session, () => this.session.serialize(writer));
+            if (this.message_id.length)
+                writer.writeString(2, this.message_id);
+            if (this.participants != false)
+                writer.writeBool(3, this.participants);
+            if (!w)
+                return writer.getResultBuffer();
+        }
+        static deserialize(bytes: Uint8Array | pb_1.BinaryReader): StatusAckRequest {
+            const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new StatusAckRequest();
+            while (reader.nextField()) {
+                if (reader.isEndGroup())
+                    break;
+                switch (reader.getFieldNumber()) {
+                    case 1:
+                        reader.readMessage(message.session, () => message.session = Session.deserialize(reader));
+                        break;
+                    case 2:
+                        message.message_id = reader.readString();
+                        break;
+                    case 3:
+                        message.participants = reader.readBool();
+                        break;
+                    default: reader.skipField();
+                }
+            }
+            return message;
+        }
+        serializeBinary(): Uint8Array {
+            return this.serialize();
+        }
+        static deserializeBinary(bytes: Uint8Array): StatusAckRequest {
+            return StatusAckRequest.deserialize(bytes);
+        }
+    }
+    export class StatusAckResponse extends pb_1.Message {
+        #one_of_decls: number[][] = [];
+        constructor(data?: any[] | {
+            message_id?: string;
+            received?: number;
+            read?: number;
+            received_participants?: string[];
+            read_participants?: string[];
+        }) {
+            super();
+            pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [4, 5], this.#one_of_decls);
+            if (!Array.isArray(data) && typeof data == "object") {
+                if ("message_id" in data && data.message_id != undefined) {
+                    this.message_id = data.message_id;
+                }
+                if ("received" in data && data.received != undefined) {
+                    this.received = data.received;
+                }
+                if ("read" in data && data.read != undefined) {
+                    this.read = data.read;
+                }
+                if ("received_participants" in data && data.received_participants != undefined) {
+                    this.received_participants = data.received_participants;
+                }
+                if ("read_participants" in data && data.read_participants != undefined) {
+                    this.read_participants = data.read_participants;
+                }
+            }
+        }
+        get message_id() {
+            return pb_1.Message.getFieldWithDefault(this, 1, "") as string;
+        }
+        set message_id(value: string) {
+            pb_1.Message.setField(this, 1, value);
+        }
+        get received() {
+            return pb_1.Message.getFieldWithDefault(this, 2, 0) as number;
+        }
+        set received(value: number) {
+            pb_1.Message.setField(this, 2, value);
+        }
+        get read() {
+            return pb_1.Message.getFieldWithDefault(this, 3, 0) as number;
+        }
+        set read(value: number) {
+            pb_1.Message.setField(this, 3, value);
+        }
+        get received_participants() {
+            return pb_1.Message.getFieldWithDefault(this, 4, []) as string[];
+        }
+        set received_participants(value: string[]) {
+            pb_1.Message.setField(this, 4, value);
+        }
+        get read_participants() {
+            return pb_1.Message.getFieldWithDefault(this, 5, []) as string[];
+        }
+        set read_participants(value: string[]) {
+            pb_1.Message.setField(this, 5, value);
+        }
+        static fromObject(data: {
+            message_id?: string;
+            received?: number;
+            read?: number;
+            received_participants?: string[];
+            read_participants?: string[];
+        }): StatusAckResponse {
+            const message = new StatusAckResponse({});
+            if (data.message_id != null) {
+                message.message_id = data.message_id;
+            }
+            if (data.received != null) {
+                message.received = data.received;
+            }
+            if (data.read != null) {
+                message.read = data.read;
+            }
+            if (data.received_participants != null) {
+                message.received_participants = data.received_participants;
+            }
+            if (data.read_participants != null) {
+                message.read_participants = data.read_participants;
+            }
+            return message;
+        }
+        toObject() {
+            const data: {
+                message_id?: string;
+                received?: number;
+                read?: number;
+                received_participants?: string[];
+                read_participants?: string[];
+            } = {};
+            if (this.message_id != null) {
+                data.message_id = this.message_id;
+            }
+            if (this.received != null) {
+                data.received = this.received;
+            }
+            if (this.read != null) {
+                data.read = this.read;
+            }
+            if (this.received_participants != null) {
+                data.received_participants = this.received_participants;
+            }
+            if (this.read_participants != null) {
+                data.read_participants = this.read_participants;
+            }
+            return data;
+        }
+        serialize(): Uint8Array;
+        serialize(w: pb_1.BinaryWriter): void;
+        serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
+            const writer = w || new pb_1.BinaryWriter();
+            if (this.message_id.length)
+                writer.writeString(1, this.message_id);
+            if (this.received != 0)
+                writer.writeUint64(2, this.received);
+            if (this.read != 0)
+                writer.writeUint64(3, this.read);
+            if (this.received_participants.length)
+                writer.writeRepeatedString(4, this.received_participants);
+            if (this.read_participants.length)
+                writer.writeRepeatedString(5, this.read_participants);
+            if (!w)
+                return writer.getResultBuffer();
+        }
+        static deserialize(bytes: Uint8Array | pb_1.BinaryReader): StatusAckResponse {
+            const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new StatusAckResponse();
+            while (reader.nextField()) {
+                if (reader.isEndGroup())
+                    break;
+                switch (reader.getFieldNumber()) {
+                    case 1:
+                        message.message_id = reader.readString();
+                        break;
+                    case 2:
+                        message.received = reader.readUint64();
+                        break;
+                    case 3:
+                        message.read = reader.readUint64();
+                        break;
+                    case 4:
+                        pb_1.Message.addToRepeatedField(message, 4, reader.readString());
+                        break;
+                    case 5:
+                        pb_1.Message.addToRepeatedField(message, 5, reader.readString());
+                        break;
+                    default: reader.skipField();
+                }
+            }
+            return message;
+        }
+        serializeBinary(): Uint8Array {
+            return this.serialize();
+        }
+        static deserializeBinary(bytes: Uint8Array): StatusAckResponse {
+            return StatusAckResponse.deserialize(bytes);
+        }
+    }
     export class Json extends pb_1.Message {
         #one_of_decls: number[][] = [];
         constructor(data?: any[] | {
@@ -11988,6 +12263,15 @@ export namespace messages {
                 responseSerialize: (message: JsonList) => Buffer.from(message.serialize()),
                 responseDeserialize: (bytes: Buffer) => JsonList.deserialize(new Uint8Array(bytes))
             },
+            GetStatusAck: {
+                path: "/messages.MessageService/GetStatusAck",
+                requestStream: false,
+                responseStream: false,
+                requestSerialize: (message: StatusAckRequest) => Buffer.from(message.serialize()),
+                requestDeserialize: (bytes: Buffer) => StatusAckRequest.deserialize(new Uint8Array(bytes)),
+                responseSerialize: (message: StatusAckResponse) => Buffer.from(message.serialize()),
+                responseDeserialize: (bytes: Buffer) => StatusAckResponse.deserialize(new Uint8Array(bytes))
+            },
             GetChats: {
                 path: "/messages.MessageService/GetChats",
                 requestStream: false,
@@ -12070,6 +12354,7 @@ export namespace messages {
         abstract RejectCall(call: grpc_1.ServerUnaryCall<RejectCallRequest, Empty>, callback: grpc_1.sendUnaryData<Empty>): void;
         abstract GetMessageById(call: grpc_1.ServerUnaryCall<EntityByIdRequest, Json>, callback: grpc_1.sendUnaryData<Json>): void;
         abstract GetMessages(call: grpc_1.ServerUnaryCall<GetMessagesRequest, JsonList>, callback: grpc_1.sendUnaryData<JsonList>): void;
+        abstract GetStatusAck(call: grpc_1.ServerUnaryCall<StatusAckRequest, StatusAckResponse>, callback: grpc_1.sendUnaryData<StatusAckResponse>): void;
         abstract GetChats(call: grpc_1.ServerUnaryCall<GetChatsRequest, JsonList>, callback: grpc_1.sendUnaryData<JsonList>): void;
     }
     export class MessageServiceClient extends grpc_1.makeGenericClientConstructor(UnimplementedMessageServiceService.definition, "MessageService", {}) {
@@ -12288,6 +12573,9 @@ export namespace messages {
         };
         GetMessages: GrpcUnaryServiceInterface<GetMessagesRequest, JsonList> = (message: GetMessagesRequest, metadata: grpc_1.Metadata | grpc_1.CallOptions | grpc_1.requestCallback<JsonList>, options?: grpc_1.CallOptions | grpc_1.requestCallback<JsonList>, callback?: grpc_1.requestCallback<JsonList>): grpc_1.ClientUnaryCall => {
             return super.GetMessages(message, metadata, options, callback);
+        };
+        GetStatusAck: GrpcUnaryServiceInterface<StatusAckRequest, StatusAckResponse> = (message: StatusAckRequest, metadata: grpc_1.Metadata | grpc_1.CallOptions | grpc_1.requestCallback<StatusAckResponse>, options?: grpc_1.CallOptions | grpc_1.requestCallback<StatusAckResponse>, callback?: grpc_1.requestCallback<StatusAckResponse>): grpc_1.ClientUnaryCall => {
+            return super.GetStatusAck(message, metadata, options, callback);
         };
         GetChats: GrpcUnaryServiceInterface<GetChatsRequest, JsonList> = (message: GetChatsRequest, metadata: grpc_1.Metadata | grpc_1.CallOptions | grpc_1.requestCallback<JsonList>, options?: grpc_1.CallOptions | grpc_1.requestCallback<JsonList>, callback?: grpc_1.requestCallback<JsonList>): grpc_1.ClientUnaryCall => {
             return super.GetChats(message, metadata, options, callback);

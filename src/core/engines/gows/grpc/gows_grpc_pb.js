@@ -653,6 +653,28 @@ function deserialize_messages_StartSessionRequest(buffer_arg) {
   return gows_pb.StartSessionRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
+function serialize_messages_StatusAckRequest(arg) {
+  if (!(arg instanceof gows_pb.StatusAckRequest)) {
+    throw new Error('Expected argument of type messages.StatusAckRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_messages_StatusAckRequest(buffer_arg) {
+  return gows_pb.StatusAckRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
+function serialize_messages_StatusAckResponse(arg) {
+  if (!(arg instanceof gows_pb.StatusAckResponse)) {
+    throw new Error('Expected argument of type messages.StatusAckResponse');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_messages_StatusAckResponse(buffer_arg) {
+  return gows_pb.StatusAckResponse.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 function serialize_messages_StreamEventsRequest(arg) {
   if (!(arg instanceof gows_pb.StreamEventsRequest)) {
     throw new Error('Expected argument of type messages.StreamEventsRequest');
@@ -1566,6 +1588,17 @@ getMessageById: {
     requestDeserialize: deserialize_messages_GetMessagesRequest,
     responseSerialize: serialize_messages_JsonList,
     responseDeserialize: deserialize_messages_JsonList,
+  },
+  getStatusAck: {
+    path: '/messages.MessageService/GetStatusAck',
+    requestStream: false,
+    responseStream: false,
+    requestType: gows_pb.StatusAckRequest,
+    responseType: gows_pb.StatusAckResponse,
+    requestSerialize: serialize_messages_StatusAckRequest,
+    requestDeserialize: deserialize_messages_StatusAckRequest,
+    responseSerialize: serialize_messages_StatusAckResponse,
+    responseDeserialize: deserialize_messages_StatusAckResponse,
   },
   getChats: {
     path: '/messages.MessageService/GetChats',

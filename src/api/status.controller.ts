@@ -25,6 +25,7 @@ import {
   VideoStatus,
   VoiceStatus,
 } from '../structures/status.dto';
+import { WAHAValidationPipe } from '@waha/nestjs/pipes/WAHAValidationPipe';
 import { PoliciesGuard } from '@waha/core/auth/policies.guard';
 import { CheckPolicies } from '@waha/core/auth/policies.decorator';
 import { CanSession, FromParam } from '@waha/core/auth/policies';
@@ -120,7 +121,7 @@ class StatusController {
   getStatusAck(
     @WorkingSessionParam session: WhatsappSession,
     @Param('messageId') messageId: string,
-    @Query() query: GetStatusAckQuery,
+    @Query(new WAHAValidationPipe()) query: GetStatusAckQuery,
   ): Promise<StatusAckSummary> {
     return session.getStatusAck(messageId, query.participants);
   }
