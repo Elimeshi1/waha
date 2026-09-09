@@ -131,7 +131,9 @@ export class StatusAckSummary {
 
   @ApiProperty({
     description:
-      'Participants (usually @lid) that received the status. Viewers are a subset of these. ' +
+      'Participants that received the status. Viewers are a subset of these. ' +
+      'Reported as a phone number (@c.us) where the session knows the number ' +
+      'behind the contact, and as the raw @lid where it does not. ' +
       'Only present when `participants=true`.',
     type: [String],
     required: false,
@@ -141,8 +143,8 @@ export class StatusAckSummary {
 
   @ApiProperty({
     description:
-      'Participants (usually @lid) that viewed the status. ' +
-      'Only present when `participants=true`.',
+      'Participants that viewed the status, in the same form as ' +
+      'receivedParticipants. Only present when `participants=true`.',
     type: [String],
     required: false,
     example: [],

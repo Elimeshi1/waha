@@ -936,8 +936,16 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
       read: Number(response.read) || 0,
     };
     if (participants) {
-      summary.receivedParticipants = response.received_participants || [];
-      summary.readParticipants = response.read_participants || [];
+      // The engine reports viewers as phone numbers where it knows the @lid
+      // behind them, and as the @lid where it does not. toCusFormat turns the
+      // former into the @c.us form the rest of the API uses and leaves the
+      // latter alone.
+      summary.receivedParticipants = (response.received_participants || []).map(
+        toCusFormat,
+      );
+      summary.readParticipants = (response.read_participants || []).map(
+        toCusFormat,
+      );
     }
     return summary;
   }
